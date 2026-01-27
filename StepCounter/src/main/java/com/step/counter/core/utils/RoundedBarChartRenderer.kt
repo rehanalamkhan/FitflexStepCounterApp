@@ -38,6 +38,9 @@ class RoundedBarChartRenderer(
 
         val phaseY = mAnimator.phaseY
 
+        if (mBarBuffers == null) {
+            initBuffers()
+        }
         val buffer = mBarBuffers[index]
         buffer.setPhases(mAnimator.phaseX, phaseY)
         buffer.setDataSet(index)

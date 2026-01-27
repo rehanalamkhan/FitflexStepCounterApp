@@ -44,7 +44,8 @@ class StepCounterService : LifecycleService(), SensorEventListener {
             val notificationChannel = createNotificationChannel()
             registerNotificationChannel(notificationChannel)
         }
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         registerStepCounter(sensorManager)
 
         // Initialise controller
@@ -82,7 +83,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
         NotificationCompat.Builder(this@StepCounterService, NOTIFICATION_CHANNEL_ID)
             .setContentIntent(launchApplicationPendingIntent)
-            .setSmallIcon(R.drawable.notification_icon)
+            .setSmallIcon(R.drawable.ic_fitflex_logo)
             .setContentTitle(title)
             .setContentText(content)
             .setOnlyAlertOnce(true)

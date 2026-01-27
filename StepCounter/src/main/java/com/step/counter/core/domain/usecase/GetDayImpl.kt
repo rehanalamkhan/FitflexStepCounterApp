@@ -18,7 +18,19 @@ class GetDayImpl(
         val dayFlow = dayRepository.getDay(date)
 
         return settingsFlow.combine(dayFlow) { settings, day ->
-            day ?: Day.of(date, settings, steps = 0)
+            val finalDay = day ?: Day.of(date, settings, steps = 0)
+            // If the record exists but has zero metrics, we update it with current settings
+            if (finalDay.height == 0 || finalDay.weight == 0 || finalDay.stepLength == 0) {
+                finalDay.copy(
+                    goal = settings.dailyGoal,
+                    height = settings.height,
+                    weight = settings.weight,
+                    stepLength = settings.stepLength,
+                    pace = settings.pace
+                )
+            } else {
+                finalDay
+            }
         }
     }
 }

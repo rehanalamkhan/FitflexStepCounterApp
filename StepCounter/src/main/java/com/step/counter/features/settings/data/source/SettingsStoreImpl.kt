@@ -26,11 +26,11 @@ class SettingsStoreImpl(
     private fun parseSettings(sharedPreferences: SharedPreferences): Settings =
         sharedPreferences.run {
             Settings(
-                dailyGoal = getNumericString("daily_goal", 0),
-                stepLength = getNumericString("step_length", 0),
-                height = getNumericString("height", 0),
-                weight = getNumericString("weight", 0),
-                pace = getNumericString("pace", 0.0)
+                dailyGoal = getNumericString("daily_goal", 8000),
+                stepLength = getNumericString("step_length", 72),
+                height = getNumericString("height", 188),
+                weight = getNumericString("weight", 70),
+                pace = getNumericString("pace", 1.0)
             )
         }
 

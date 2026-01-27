@@ -18,5 +18,11 @@
     <string name="distance">Distance</string>
     <string name="statistic">Statistic</string>
     <string name="total_steps">Total Steps</string>
+    <string name="distance_travelled_format">%.2f km</string>
+    <plurals name="step_count_format">
+        <item quantity="one">Step</item>
+        <item quantity="other">Steps</item>
+    </plurals>
+    <string name="kcal">kcal</string>
 
 </resources>
