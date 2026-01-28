@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <dimen name="horizontalPadding">@dimen/_12sdp</dimen>
-    <dimen name="step_item_height">@dimen/_30sdp</dimen>
-
-</resources>

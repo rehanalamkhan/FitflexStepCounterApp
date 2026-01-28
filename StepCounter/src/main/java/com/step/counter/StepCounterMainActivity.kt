@@ -13,7 +13,7 @@ import com.step.counter.core.utils.extensions.setInsets
 import com.step.counter.databinding.ActivityMainBinding
 
 
-class MainActivity : FragmentActivity() {
+class StepCounterMainActivity : FragmentActivity() {
 
     private lateinit var navController: NavController
 

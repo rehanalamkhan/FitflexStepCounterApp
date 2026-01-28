@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -19,7 +18,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.step.counter.ApplicationClass
-import com.step.counter.MainActivity
+import com.step.counter.StepCounterMainActivity
 import com.step.counter.R
 import com.step.counter.core.data.repository.DayRepositoryImpl
 import com.step.counter.core.domain.usecase.DayUseCases
@@ -95,7 +94,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
     private val launchApplicationPendingIntent
         get(): PendingIntent {
-            val intent = Intent(applicationContext, MainActivity::class.java)
+            val intent = Intent(applicationContext, StepCounterMainActivity::class.java)
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             return PendingIntent.getActivity(this, PENDING_INTENT_ID, intent, flags)
         }

@@ -8,7 +8,7 @@
                 android:endColor="#FF7253"
                 android:startColor="#EF3511"
                 android:type="linear" />
-            <corners android:radius="@dimen/_12sdp" />
+            <corners android:radius="16dp" />
         </shape>
     </item>
 
@@ -21,7 +21,7 @@
         <shape android:shape="rectangle">
             <solid android:color="#FFFFFF" />
 
-            <corners android:radius="@dimen/_12sdp" />
+            <corners android:radius="16dp" />
         </shape>
     </item>
 </layer-list>

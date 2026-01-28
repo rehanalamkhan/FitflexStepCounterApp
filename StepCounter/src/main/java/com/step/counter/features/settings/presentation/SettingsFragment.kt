@@ -6,6 +6,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -94,6 +95,19 @@ class SettingsFragment : Fragment() {
 
                         paint.shader = shader
                         paint.isFakeBoldText = true
+
+                        val mItemSpacingField = this.javaClass.getDeclaredField("mItemSpacing")
+                        mItemSpacingField.isAccessible = true
+
+                        // set EXACT spacing you want (in px)
+                        val spacingPx = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            0f, // 👈 real zero spacing
+                            resources.displayMetrics
+                        ).toInt()
+
+                        mItemSpacingField.setInt(this, spacingPx)
+
                         invalidate()
                     } catch (e: Exception) {
                         e.printStackTrace()

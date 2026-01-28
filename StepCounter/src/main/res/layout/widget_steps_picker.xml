@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/_220sdp">
+    android:layout_height="@dimen/_140sdp">
 
 
     <com.shawnlin.numberpicker.NumberPicker
         android:id="@+id/number_picker"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/_220sdp"
+        android:layout_height="@dimen/_140sdp"
         android:layout_gravity="center"
         app:np_dividerColor="@android:color/transparent"
         app:np_height="180dp"
