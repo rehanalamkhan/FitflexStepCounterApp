@@ -1,5 +1,6 @@
 import org.gradle.kotlin.dsl.coreLibraryDesugaring
-
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.library")
@@ -8,7 +9,12 @@ plugins {
     id("maven-publish")
 }
 
-
+val githubProperties = Properties().apply {
+    val file = rootProject.file("github.properties")
+    if (file.exists()) {
+        load(FileInputStream(file))
+    }
+}
 
 android {
     namespace = "com.step.counter"
@@ -48,8 +54,12 @@ android {
     room {
         schemaDirectory("$projectDir/schemas")
     }
-
-
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
 }
 
 
@@ -59,6 +69,47 @@ kotlin {
     }
 }
 
+
+publishing {
+
+    publications {
+        create<MavenPublication>("release") {
+            groupId = "com.github.MuhammadFaizanSohail"
+            artifactId = "stepcounter"
+            version = "1.0.0"
+
+            afterEvaluate {
+                from(components["release"])
+            }
+
+            pom {
+                name.set("stepcounter")
+                description.set("app for step counter")
+                url.set("https://github.com/MuhammadFaizanSohail/StepCounterAppSample.git")
+
+                licenses {
+                    license {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("MuhammadFaizanSohail")
+                        name.set("Faizan")
+                        email.set("your.email@example.com")
+                    }
+                }
+                scm {
+                    connection = "scm:git:git://github.com/MuhammadFaizanSohail/StepCounter.git"
+                    developerConnection = "scm:git:ssh://github.com/MuhammadFaizanSohail/StepCounter.git"
+                    url = "http://github.com/MuhammadFaizanSohail/StepCounter/"
+                }
+            }
+        }
+    }
+}
 
 dependencies {
     // Core
