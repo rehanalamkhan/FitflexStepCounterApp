@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "StepCounterAppSample"
 include(":app")
 include(":StepCounter")
+//include(":myFusedLibrary")

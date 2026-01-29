@@ -41,19 +41,20 @@ android {
 
     buildFeatures {
         buildConfig = true
-        viewBinding = true
-        dataBinding = true
+        viewBinding = false
+        dataBinding = false
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
     }
 
     room {
         schemaDirectory("$projectDir/schemas")
     }
+
     publishing {
         singleVariant("release") {
             withSourcesJar()
@@ -65,18 +66,17 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
 
 publishing {
-
     publications {
         create<MavenPublication>("release") {
-            groupId = "com.github.MuhammadFaizanSohail"
+            groupId = "io.github.muhammadfaizansohail"
             artifactId = "stepcounter"
-            version = "1.0.0"
+            version = "1.0.1"
 
             afterEvaluate {
                 from(components["release"])
@@ -101,6 +101,7 @@ publishing {
                         email.set("your.email@example.com")
                     }
                 }
+
                 scm {
                     connection = "scm:git:git://github.com/MuhammadFaizanSohail/StepCounterAppSample.git"
                     developerConnection = "scm:git:ssh://github.com/MuhammadFaizanSohail/StepCounterAppSample.git"
@@ -128,15 +129,15 @@ dependencies {
 
 
     // Views/Fragments integration
-    implementation("androidx.navigation:navigation-fragment-ktx:2.9.6")
-    implementation("androidx.navigation:navigation-ui-ktx:2.9.6")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.9.7")
+    implementation("androidx.navigation:navigation-ui-ktx:2.9.7")
     implementation("androidx.fragment:fragment-ktx:1.8.9")
 
-    implementation("androidx.navigation:navigation-dynamic-features-fragment:2.9.6")
-    implementation("androidx.activity:activity-ktx:1.12.2")
+    implementation("androidx.navigation:navigation-dynamic-features-fragment:2.9.7")
+    implementation("androidx.activity:activity-ktx:1.12.3")
 
-    androidTestImplementation("androidx.navigation:navigation-testing:2.9.6")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    androidTestImplementation("androidx.navigation:navigation-testing:2.9.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

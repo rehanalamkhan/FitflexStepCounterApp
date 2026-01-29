@@ -3,7 +3,8 @@ package com.step.counter.features.settings.presentation
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
-import com.step.counter.databinding.ActivitySettingsBinding
+import com.google.android.material.appbar.MaterialToolbar
+import com.step.counter.R
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -11,13 +12,12 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        val binding = ActivitySettingsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setupActionBar(binding)
+        setContentView(R.layout.activity_settings)
+        setupActionBar()
     }
 
-    private fun setupActionBar(binding: ActivitySettingsBinding) {
-        setSupportActionBar(binding.toolbar)
+    private fun setupActionBar() {
+        setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 }
