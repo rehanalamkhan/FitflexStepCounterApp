@@ -28,4 +28,3 @@ android-library = { id = "com.android.library", version.ref = "agp" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "kspVersion" }
 android-safeargs = { id = "androidx.navigation.safeargs.kotlin", version.ref = "safeargs" }
 room = { id = "androidx.room", version.ref = "room" }
-android-fusedlibrary = { id = "com.android.fused-library", version.ref = "agp" }

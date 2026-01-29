@@ -5,5 +5,4 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.room) apply false
     alias(libs.plugins.android.safeargs) apply false
-    alias(libs.plugins.android.fusedlibrary) apply false
 }

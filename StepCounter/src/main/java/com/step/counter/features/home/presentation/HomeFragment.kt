@@ -1,6 +1,5 @@
 package com.step.counter.features.home.presentation
 
-
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
@@ -8,8 +7,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.core.graphics.toColorInt
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -27,24 +24,13 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.step.counter.R
 import com.step.counter.core.domain.model.Day
 import com.step.counter.core.utils.RoundedBarChartRenderer
+import com.step.counter.databinding.FragmentHomeBinding
 import com.step.counter.features.home.data.model.StatsDetailsState
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Calendar
 
-
 class HomeFragment : Fragment() {
-
-    private lateinit var barChart: BarChart
-    private lateinit var menuBtn: View
-    private lateinit var greetingText: TextView
-
-    private lateinit var todayTargetText: TextView
-
-    private lateinit var distanceLayout: View
-    private lateinit var stepsLayout: View
-    private lateinit var caloryLayout: View
-
 
     private val grayColor = "#979797".toColorInt()
     private val gradientStart = "#EF3511".toColorInt()
@@ -53,6 +39,8 @@ class HomeFragment : Fragment() {
     private val viewModel: StatsDetailsViewModel by activityViewModels { StatsDetailsViewModel }
     private val statsChartPageViewModel: StatsChartPageViewModel by viewModels { StatsChartPageViewModel.Factory }
 
+    private var _binding: FragmentHomeBinding? = null
+    private val binding get() = _binding!!
     private var roundedRenderer: RoundedBarChartRenderer? = null
     private var previousSteps: List<Float>? = null
     private var chartValueAnimator: ValueAnimator? = null
@@ -61,20 +49,12 @@ class HomeFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_home, container, false)
+        _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        barChart = view.findViewById(R.id.barChart)
-        menuBtn = view.findViewById(R.id.menuBtn)
-        greetingText = view.findViewById(R.id.greetingText)
-        todayTargetText = view.findViewById(R.id.todayTargetText)
-
-        distanceLayout = view.findViewById(R.id.distanceLayout)
-        stepsLayout = view.findViewById(R.id.stepsLayout)
-        caloryLayout = view.findViewById(R.id.caloryLayout)
 
         val today = LocalDate.now()
         val firstDayOfWeek = today.minusDays(today.dayOfWeek.value % 7L)
@@ -86,7 +66,7 @@ class HomeFragment : Fragment() {
                 statsChartPageViewModel.week.collect { week ->
                     Log.d("stats***", "onViewCreated: week: $week")
                     if (week.isNotEmpty()) {
-                        updateBarChart(barChart, week)
+                        updateBarChart(binding.barChart, week)
                     }
                 }
             }
@@ -101,7 +81,7 @@ class HomeFragment : Fragment() {
             }
         }
 
-        menuBtn.setOnClickListener {
+        binding.menuBtn.setOnClickListener {
             findNavController().navigate(R.id.homeFragmentToSettingsFragment)
         }
     }
@@ -117,7 +97,7 @@ class HomeFragment : Fragment() {
             else -> getString(R.string.good_night)
         }
 
-        greetingText.text = greeting
+        binding.greetingText.text = greeting
     }
 
     private fun updateUserInterface(statsDetailsState: StatsDetailsState) =
@@ -129,20 +109,26 @@ class HomeFragment : Fragment() {
                 R.string.distance_travelled_format, distanceTravelled
             )
 
-            todayTargetText.text =
-                getString(R.string.target_steps, goal.toString())
+            with(binding) {
+                todayTargetText.text =
+                    getString(R.string.target_steps, goal.toString())
 
-            distanceLayout.findViewById<ImageView>(R.id.image)?.setImageResource(R.drawable.ic_distance)
-            distanceLayout.findViewById<TextView>(R.id.valueText)?.text = distanceText
-            distanceLayout.findViewById<TextView>(R.id.descText)?.text = getString(R.string.distance)
-
-            stepsLayout.findViewById<ImageView>(R.id.image)?.setImageResource(R.drawable.ic_steps)
-            stepsLayout.findViewById<TextView>(R.id.valueText)?.text = stepsTaken.toString()
-            stepsLayout.findViewById<TextView>(R.id.descText)?.text = stepsText
-
-            caloryLayout.findViewById<ImageView>(R.id.image)?.setImageResource(R.drawable.ic_kcal)
-            caloryLayout.findViewById<TextView>(R.id.valueText)?.text = calorieBurned.toString()
-            caloryLayout.findViewById<TextView>(R.id.descText)?.text = getString(R.string.kcal)
+                with(distanceLayout) {
+                    image.setImageResource(R.drawable.ic_distance)
+                    valueText.text = distanceText
+                    descText.text = getString(R.string.distance)
+                }
+                with(stepsLayout) {
+                    image.setImageResource(R.drawable.ic_steps)
+                    valueText.text = stepsTaken.toString()
+                    descText.text = stepsText
+                }
+                with(caloryLayout) {
+                    image.setImageResource(R.drawable.ic_kcal)
+                    valueText.text = calorieBurned.toString()
+                    descText.text = getString(R.string.kcal)
+                }
+            }
         }
 
     private fun updateBarChart(barChart: BarChart, week: List<Day>) {
