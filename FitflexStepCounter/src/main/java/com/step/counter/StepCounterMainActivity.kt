@@ -31,6 +31,7 @@ class StepCounterMainActivity : FragmentActivity() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
+        navController.setGraph(R.navigation.nav_graph)
 
         startStepCounterService()
     }
