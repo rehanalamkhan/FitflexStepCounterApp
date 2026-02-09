@@ -118,6 +118,7 @@ class HomeFragment : Fragment() {
                     valueText.text = distanceText
                     descText.text = getString(R.string.distance)
                 }
+
                 with(stepsLayout) {
                     image.setImageResource(R.drawable.ic_steps)
                     valueText.text = stepsTaken.toString()
@@ -135,7 +136,13 @@ class HomeFragment : Fragment() {
 
         // 1️⃣ Prepare new step values (Sun → Sat)
         val newSteps = week.take(7).map { it.steps.toFloat() }
-        val gradientIndices = setOf(0, 2, 3, 5)
+//        val gradientIndices = setOf(0, 2, 3, 5)
+
+        val gradientIndices = week.take(7)
+            .mapIndexedNotNull { index, day ->
+                if (day.steps >= day.goal) index else null
+            }
+            .toSet()
 
         val colors = newSteps.indices.map { index ->
             if (index in gradientIndices) gradientEnd else grayColor
