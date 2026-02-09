@@ -210,7 +210,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_12sdp"
             android:elevation="0dp"
-            app:cardBackgroundColor="@color/card_bg"
+            app:cardBackgroundColor="@color/graph_bg"
             app:cardCornerRadius="@dimen/_12sdp"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toTopOf="@id/statsLL"
