@@ -25,6 +25,7 @@
         android:layout_marginTop="@dimen/_12sdp"
         android:fontFamily="@font/inter_18pt_bold"
         android:gravity="center"
+        android:textColor="@color/black"
         android:textSize="@dimen/_12sdp"
         tools:text="2 km" />
 
