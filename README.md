@@ -40,7 +40,7 @@ dependencyResolutionManagement {
 ### 2. Add Dependency
 
 ```kotlin
-implementation("com.github.rehanalamkhan:FitflexStepCounterApp:1.0.0")
+implementation("com.github.rehanalamkhan:FitflexStepCounterApp:1.0.1")
 coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 ```
 
