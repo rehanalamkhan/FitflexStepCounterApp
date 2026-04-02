@@ -22,7 +22,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 21
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -75,7 +75,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "com.github.rehanalamkhan"
             artifactId = "stepcounter"
-            version = "1.0.0"
+            version = "1.0.2"
 
             afterEvaluate {
                 from(components["release"])
