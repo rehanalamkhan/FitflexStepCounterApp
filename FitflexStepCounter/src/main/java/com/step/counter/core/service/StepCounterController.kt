@@ -1,5 +1,6 @@
 package com.step.counter.core.service
 
+import android.util.Log
 import com.step.counter.core.domain.usecase.DayUseCases
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -18,6 +19,10 @@ class StepCounterController(
     private val coroutineScope: CoroutineScope,
     currentDateFlow: StateFlow<LocalDate>,
 ) {
+
+    companion object {
+        private const val TAG = "StepCounterController"
+    }
 
     private val _stats = MutableStateFlow(StepCounterState(LocalDate.now(), 0, 0, 0.0, 0))
     val stats: StateFlow<StepCounterState> = _stats.asStateFlow()
@@ -53,7 +58,14 @@ class StepCounterController(
         rawStepSensorReadings.drop(1).onEach { event ->
             val stepCountDifference = event.stepCount - (previousStepCount ?: event.stepCount)
             previousStepCount = event.stepCount
-            dayUseCases.incrementStepCount(event.eventDate, stepCountDifference)
+//            Log.d(
+//                TAG,
+//                "step event total=${event.stepCount} delta=$stepCountDifference date=${event.eventDate}",
+//            )
+            if (stepCountDifference > 0) {
+                dayUseCases.incrementStepCount(event.eventDate, stepCountDifference)
+//                Log.d(TAG, "persisted +$stepCountDifference steps for ${event.eventDate}")
+            }
         }.launchIn(coroutineScope)
     }
 

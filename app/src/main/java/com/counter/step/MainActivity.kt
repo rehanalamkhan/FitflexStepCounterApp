@@ -9,11 +9,19 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.step.counter.R
 import com.step.counter.StepCounterMainActivity
+import com.step.counter.features.home.presentation.StatsDetailsViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -29,10 +37,35 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    private val viewModel: StatsDetailsViewModel by viewModels { StatsDetailsViewModel.Factory }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        observeStatsFromViewModel()
         askForRequiredPermissions()
+    }
+
+    /**
+     * Observes [StatsDetailsViewModel.day] (steps, distance, calories, goal) while this activity
+     * is started. Replace the [Log] line with UI updates (TextView, Compose, etc.) as needed.
+     */
+    private fun observeStatsFromViewModel() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.day.collect { stats ->
+
+                    val stepsText = resources.getQuantityString(
+                        com.step.counter.R.plurals.step_count_format, stats.stepsTaken,
+                    )
+                    val distanceText = getString(
+                        R.string.distance_travelled_format, stats.distanceTravelled
+                    )
+
+                    val caloriesBurned = stats.calorieBurned
+                }
+            }
+        }
     }
 
     private fun askForRequiredPermissions() {
@@ -54,7 +87,7 @@ class MainActivity : AppCompatActivity() {
 
         val allGranted = permissions.all {
             ContextCompat.checkSelfPermission(this, it) ==
-                    PackageManager.PERMISSION_GRANTED
+                PackageManager.PERMISSION_GRANTED
         }
 
         if (allGranted) {
@@ -83,5 +116,8 @@ class MainActivity : AppCompatActivity() {
             }
         )
     }
-}
 
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+}

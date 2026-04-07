@@ -2,6 +2,7 @@ package com.step.counter
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -32,7 +33,13 @@ class StepCounterMainActivity : FragmentActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
         navController.setGraph(R.navigation.nav_graph)
-
+        onBackPressedDispatcher.addCallback(this) {
+            if (navController.currentDestination?.id == R.id.homeFragment) {
+                finish()
+            } else {
+                navController.popBackStack()
+            }
+        }
         startStepCounterService()
     }
 

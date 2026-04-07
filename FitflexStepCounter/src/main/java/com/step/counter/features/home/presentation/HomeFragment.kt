@@ -36,7 +36,7 @@ class HomeFragment : Fragment() {
     private val gradientStart = "#EF3511".toColorInt()
     private val gradientEnd = "#FF7253".toColorInt()
 
-    private val viewModel: StatsDetailsViewModel by activityViewModels { StatsDetailsViewModel }
+    private val viewModel: StatsDetailsViewModel by activityViewModels { StatsDetailsViewModel.Factory }
     private val statsChartPageViewModel: StatsChartPageViewModel by viewModels { StatsChartPageViewModel.Factory }
 
     private var _binding: FragmentHomeBinding? = null

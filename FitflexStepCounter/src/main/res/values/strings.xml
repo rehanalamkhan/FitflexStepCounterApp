@@ -32,4 +32,13 @@
     <string name="good_evening">Good Evening 🌆</string>
     <string name="good_night">Good Night 🌙</string>
 
+    <string name="toast_activity_detected">%1$s detected — steps will count</string>
+    <string name="toast_activity_walking">Walking</string>
+    <string name="toast_activity_running">Running</string>
+    <string name="toast_activity_on_foot">On foot</string>
+    <plurals name="toast_steps_counted">
+        <item quantity="one">%d step counted</item>
+        <item quantity="other">%d steps counted</item>
+    </plurals>
+
 </resources>

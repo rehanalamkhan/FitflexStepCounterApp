@@ -11,12 +11,18 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Build.VERSION_CODES
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.gms.location.ActivityRecognition
+import com.google.android.gms.location.ActivityRecognitionResult
+import com.google.android.gms.location.DetectedActivity
 import com.step.counter.StepCounterMainActivity
 import com.step.counter.R
 import com.step.counter.StepCounter
@@ -30,24 +36,49 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
     private lateinit var controller: StepCounterController
+    private var activityRecognitionPendingIntent: PendingIntent? = null
+
+    private var isStepCountingAllowed = false
+    private var lastValidActivityTime = 0L
+    private var activityUpdatesHandledCount = 0
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var activityRecognitionFallback: Runnable? = null
 
     companion object {
+        private const val TAG = "StepCounterService"
         private const val NOTIFICATION_CHANNEL_ID = "step_counter_channel"
         private const val NOTIFICATION_ID = 0x1
         private const val PENDING_INTENT_ID = 0x1
+        private const val ACTIVITY_RECOGNITION_PI_REQUEST_CODE = 0x2
+        private const val ACTIVITY_UPDATE_INTERVAL_MS = 5_000L
+        private const val ACTIVITY_GATE_TIMEOUT_MS = 10_000L
+        private const val AR_FALLBACK_OPEN_GATE_MS = 12_000L
+
+        private val STEP_ACTIVITIES = setOf(
+            DetectedActivity.WALKING,
+            DetectedActivity.RUNNING,
+            DetectedActivity.ON_FOOT,
+        )
+
+        private val BLOCK_ACTIVITIES = setOf(
+            DetectedActivity.IN_VEHICLE,
+            DetectedActivity.ON_BICYCLE,
+            DetectedActivity.STILL,
+        )
+
+        const val ACTION_ACTIVITY_UPDATE = "com.step.counter.ACTIVITY_UPDATE"
     }
 
     override fun onCreate() {
         super.onCreate()
+//        Log.d(TAG, "onCreate")
         if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
-            val notificationChannel = createNotificationChannel()
-            registerNotificationChannel(notificationChannel)
+            registerNotificationChannel(createNotificationChannel())
         }
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         registerStepCounter(sensorManager)
 
-        // Initialise controller
         StepCounter.init(this)
 
         val settingsStore = StepCounter.settingsStore
@@ -58,27 +89,153 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
         controller = StepCounterController(dayUseCases, lifecycleScope, StepCounter.currentDate)
 
-        // Create notification
-        val notification = createNotification(controller.stats.value)
-        startForeground(NOTIFICATION_ID, notification)
+        registerActivityRecognition()
+
+        startForeground(NOTIFICATION_ID, createNotification(controller.stats.value))
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 controller.stats.collect {
-                    val updatedNotification = createNotification(it)
-                    notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+                    notificationManager.notify(NOTIFICATION_ID, createNotification(it))
                 }
             }
         }
     }
 
+    // ─── Activity Recognition ──────────────────────────────────────────────────
+
+    private fun registerActivityRecognition() {
+        val intent = Intent(this, ActivityRecognitionUpdateReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            ACTIVITY_RECOGNITION_PI_REQUEST_CODE,
+            intent,
+            activityRecognitionPendingIntentFlags(),
+        )
+        activityRecognitionPendingIntent = pendingIntent
+
+        ActivityRecognition.getClient(this)
+            .requestActivityUpdates(ACTIVITY_UPDATE_INTERVAL_MS, pendingIntent)
+            .addOnSuccessListener {
+//                Log.d(TAG, "Activity recognition registered successfully")
+                scheduleActivityRecognitionGateFallback()
+            }
+            .addOnFailureListener {
+//                Log.e(TAG, "Activity recognition failed to register: ${it.message}")
+                cancelActivityRecognitionGateFallback()
+                isStepCountingAllowed = true
+            }
+    }
+
+    private fun scheduleActivityRecognitionGateFallback() {
+        cancelActivityRecognitionGateFallback()
+        val runnable = Runnable {
+            if (activityUpdatesHandledCount == 0) {
+//                Log.w(TAG, "No activity update reached the service — opening step gate (fallback)")
+                isStepCountingAllowed = true
+            }
+        }
+        activityRecognitionFallback = runnable
+        mainHandler.postDelayed(runnable, AR_FALLBACK_OPEN_GATE_MS)
+    }
+
+    private fun cancelActivityRecognitionGateFallback() {
+        activityRecognitionFallback?.let { mainHandler.removeCallbacks(it) }
+        activityRecognitionFallback = null
+    }
+
+    private fun handleActivityUpdate(intent: Intent) {
+        if (!ActivityRecognitionResult.hasResult(intent)) {
+//            Log.w(TAG, "handleActivityUpdate: no AR result in intent")
+            return
+        }
+        val result = ActivityRecognitionResult.extractResult(intent) ?: return
+        activityUpdatesHandledCount++
+        val activities = result.probableActivities
+
+        // Log all detected activities and confidence levels
+//        activities.forEach {
+//            Log.d(TAG, "Activity: ${activityName(it.type)} confidence: ${it.confidence}%")
+//        }
+
+        val topActivity = activities.maxByOrNull { it.confidence } ?: return
+//        Log.d(TAG, "Top activity: ${activityName(topActivity.type)} @ ${topActivity.confidence}%")
+
+        when {
+            topActivity.type in STEP_ACTIVITIES && topActivity.confidence >= 50 -> {
+//                Log.d(TAG, "Gate OPENED — walking/running detected")
+                isStepCountingAllowed = true
+                lastValidActivityTime = System.currentTimeMillis()
+            }
+            topActivity.type in BLOCK_ACTIVITIES && topActivity.confidence >= 75 -> {
+                val elapsed = System.currentTimeMillis() - lastValidActivityTime
+                if (elapsed > ACTIVITY_GATE_TIMEOUT_MS) {
+//                    Log.d(TAG, "Gate CLOSED — ${activityName(topActivity.type)} detected for ${elapsed}ms")
+                    isStepCountingAllowed = false
+                } else {
+//                    Log.d(TAG, "Gate staying OPEN — grace period not elapsed (${elapsed}ms)")
+                }
+            }
+            else -> {
+//                Log.d(TAG, "Gate unchanged — ambiguous activity")
+            }
+        }
+    }
+
+    private fun activityName(type: Int) = when (type) {
+        DetectedActivity.WALKING -> "WALKING"
+        DetectedActivity.RUNNING -> "RUNNING"
+        DetectedActivity.ON_FOOT -> "ON_FOOT"
+        DetectedActivity.IN_VEHICLE -> "IN_VEHICLE"
+        DetectedActivity.ON_BICYCLE -> "ON_BICYCLE"
+        DetectedActivity.STILL -> "STILL"
+        DetectedActivity.TILTING -> "TILTING"
+        DetectedActivity.UNKNOWN -> "UNKNOWN"
+        else -> "OTHER($type)"
+    }
+
+    private fun activityRecognitionPendingIntentFlags(): Int {
+        val base = PendingIntent.FLAG_UPDATE_CURRENT
+        return if (Build.VERSION.SDK_INT >= VERSION_CODES.S) base or PendingIntent.FLAG_MUTABLE
+        else base
+    }
+
+    // ─── onStartCommand ───────────────────────────────────────────────────────
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+//        Log.d(TAG, "onStartCommand action: ${intent?.action}")
+        if (intent?.action == ACTION_ACTIVITY_UPDATE) {
+            handleActivityUpdate(intent)
+        }
+        return START_STICKY
+    }
+
+    // ─── Sensor ───────────────────────────────────────────────────────────────
+
+    private fun registerStepCounter(sensorManager: SensorManager) {
+        sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        event ?: return
+        if (event.sensor.type != Sensor.TYPE_STEP_COUNTER) return
+//        Log.d(TAG, "Step sensor fired — gate open: $isStepCountingAllowed, steps: ${event.values[0].toInt()}")
+        if (!isStepCountingAllowed) return
+        controller.onStepCountChanged(event.values[0].toInt(), LocalDate.now())
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    // ─── Notification ─────────────────────────────────────────────────────────
+
     private fun createNotification(state: StepCounterState): Notification = state.run {
         val title = resources.getQuantityString(R.plurals.step_count, steps, steps)
         val progress = if (goal == 0) 0 else steps * 100 / goal
-        val content = getString(
-            R.string.step_counter_stats, calorieBurned, distanceTravelled, progress
-        )
+        val content = getString(R.string.step_counter_stats, calorieBurned, distanceTravelled, progress)
 
         NotificationCompat.Builder(this@StepCounterService, NOTIFICATION_CHANNEL_ID)
             .setContentIntent(launchApplicationPendingIntent)
@@ -99,40 +256,30 @@ class StepCounterService : LifecycleService(), SensorEventListener {
             return PendingIntent.getActivity(this, PENDING_INTENT_ID, intent, flags)
         }
 
-    private fun registerStepCounter(sensorManager: SensorManager) {
-        val stepCounterSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        stepCounterSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
-    }
-
-    override fun onSensorChanged(event: SensorEvent?) {
-        event?.let {
-            val eventStepCount = it.values[0].toInt()
-            controller.onStepCountChanged(eventStepCount, LocalDate.now())
-        }
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    // ─── Cleanup ──────────────────────────────────────────────────────────────
 
     override fun onDestroy() {
-        super.onDestroy()
+        cancelActivityRecognitionGateFallback()
+        activityRecognitionPendingIntent?.let {
+            ActivityRecognition.getClient(this).removeActivityUpdates(it)
+        }
+        activityRecognitionPendingIntent = null
         sensorManager.unregisterListener(this)
+        super.onDestroy()
     }
+
+    // ─── Notification Channel ─────────────────────────────────────────────────
 
     @RequiresApi(VERSION_CODES.O)
-    private fun createNotificationChannel(): NotificationChannel {
-        val name = getString(R.string.step_counter_channel)
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-
-        return NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
-            setShowBadge(false)
-        }
-    }
+    private fun createNotificationChannel() = NotificationChannel(
+        NOTIFICATION_CHANNEL_ID,
+        getString(R.string.step_counter_channel),
+        NotificationManager.IMPORTANCE_DEFAULT
+    ).apply { setShowBadge(false) }
 
     @RequiresApi(VERSION_CODES.O)
     private fun registerNotificationChannel(channel: NotificationChannel) {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
+            .createNotificationChannel(channel)
     }
 }
