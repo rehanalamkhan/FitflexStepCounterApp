@@ -40,5 +40,6 @@
         <item quantity="one">%d step counted</item>
         <item quantity="other">%d steps counted</item>
     </plurals>
+    <string name="stop_service">Stop service</string>
 
 </resources>

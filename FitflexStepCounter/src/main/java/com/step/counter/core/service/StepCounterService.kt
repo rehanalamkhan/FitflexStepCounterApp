@@ -67,6 +67,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         )
 
         const val ACTION_ACTIVITY_UPDATE = "com.step.counter.ACTIVITY_UPDATE"
+        const val ACTION_STOP_SERVICE   = "com.step.counter.STOP_SERVICE"
     }
 
     override fun onCreate() {
@@ -208,6 +209,14 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 //        Log.d(TAG, "onStartCommand action: ${intent?.action}")
         if (intent?.action == ACTION_ACTIVITY_UPDATE) {
             handleActivityUpdate(intent)
+        } else if (intent?.action== ACTION_STOP_SERVICE){
+            if (Build.VERSION.SDK_INT >= VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            stopSelf()
         }
         return START_STICKY
     }
@@ -246,8 +255,17 @@ class StepCounterService : LifecycleService(), SensorEventListener {
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSilent(true)
+            .addAction(0, getString(R.string.stop_service), stopServicePendingIntent)
             .build()
     }
+
+    private val stopServicePendingIntent: PendingIntent
+        get() {
+            val intent = Intent(this, StepCounterService::class.java)
+                .setAction(ACTION_STOP_SERVICE)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            return PendingIntent.getService(this, 0x3, intent, flags)
+        }
 
     private val launchApplicationPendingIntent
         get(): PendingIntent {
