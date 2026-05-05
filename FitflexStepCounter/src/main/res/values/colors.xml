@@ -4,9 +4,6 @@
     <color name="card_bg">#FFF9F7</color>
     <color name="graph_bg">#FFFAF4</color>
     <color name="white">#FFFFFF</color>
-    <color name="red">#F44336</color>
-
-
-    <color name="startColor">#EF3511</color>
-    <color name="endColor">#FF7253</color>
+    <color name="primary">#8DC63F</color>
+    <color name="secondary">#ED0180</color>
 </resources>

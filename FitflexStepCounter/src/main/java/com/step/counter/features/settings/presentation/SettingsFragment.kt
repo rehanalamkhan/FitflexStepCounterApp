@@ -119,8 +119,8 @@ class SettingsFragment : Fragment() {
                         tvLabel.viewTreeObserver.removeOnGlobalLayoutListener(this)
 
                         // Get colors from resources
-                        val startColor = ContextCompat.getColor(activity, R.color.startColor)
-                        val endColor = ContextCompat.getColor(activity, R.color.endColor)
+                        val startColor = ContextCompat.getColor(activity, R.color.primary)
+                        val endColor = ContextCompat.getColor(activity, R.color.primary)
 
                         // Create the LinearGradient shader
                         val textShader = LinearGradient(

@@ -51,7 +51,7 @@ object StepCounter {
         registerMidnightTimer(appContext)
 
         // Debug-only: today's row is overwritten with dummy steps so bar chart / gradient can be verified offline.
-      /*  if (BuildConfig.DEBUG) {
+     /*   if (BuildConfig.DEBUG) {
             debugSeedScope.launch {
                 runCatching { seedDebugDummyStepsForToday() }
                     .onFailure { Log.e(TAG, "Debug dummy steps seed failed", it) }
@@ -92,5 +92,5 @@ object StepCounter {
     }
 
     private const val TAG = "StepCounter"
-    private const val DEBUG_DUMMY_STEPS = 995
+    private const val DEBUG_DUMMY_STEPS = 2000
 }

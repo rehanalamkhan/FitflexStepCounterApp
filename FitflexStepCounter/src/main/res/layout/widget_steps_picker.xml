@@ -19,7 +19,7 @@
         app:np_orientation="vertical"
         app:np_selectedTypeface="@font/inter_18pt_bold"
         app:np_typeface="@font/inter_18pt_bold"
-        app:np_selectedTextColor="@color/red"
+        app:np_selectedTextColor="@color/primary"
         app:np_selectedTextSize="@dimen/_24sdp"
         app:np_textColor="@color/black"
         app:np_textSize="@dimen/_14sdp"
@@ -55,7 +55,7 @@
         android:fontFamily="@font/inter_18pt_bold"
         android:focusable="false"
         android:text="@string/steps_large"
-        android:textColor="@color/startColor"
+        android:textColor="@color/primary"
         android:textSize="@dimen/_14sdp" />
 
 </FrameLayout>

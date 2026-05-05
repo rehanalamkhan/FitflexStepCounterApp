@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -34,8 +35,7 @@ import java.util.Calendar
 class HomeFragment : Fragment() {
 
     private val grayColor = "#979797".toColorInt()
-    private val gradientStart = "#EF3511".toColorInt()
-    private val gradientEnd = "#FF7253".toColorInt()
+    private val primaryColor = "#8DC63F".toColorInt()
 
     private val viewModel: StatsDetailsViewModel by activityViewModels { StatsDetailsViewModel.Factory }
     private val statsChartPageViewModel: StatsChartPageViewModel by viewModels { StatsChartPageViewModel.Factory }
@@ -164,7 +164,7 @@ class HomeFragment : Fragment() {
 
         // New list each draw — MPAndroidChart mutates internally; reassignment ensures grey vs gradient is correct.
         val colors = newSteps.indices.map { index ->
-            if (index in gradientIndices) gradientEnd else grayColor
+            if (index in gradientIndices) primaryColor else grayColor
         }
 
         // 2️⃣ Setup initial OR Update existing dataset
@@ -195,8 +195,8 @@ class HomeFragment : Fragment() {
                 barChart.viewPortHandler,
                 radius = 20f,
                 initialGradientIndices = gradientIndices,
-                gradientStart = gradientStart,
-                gradientEnd = gradientEnd
+                gradientStart = primaryColor,
+                gradientEnd = primaryColor
             )
             barChart.renderer = roundedRenderer
         } else {
@@ -252,7 +252,7 @@ class HomeFragment : Fragment() {
             setDrawGridLines(false)
             setDrawAxisLine(false)
             granularity = 1f
-            textColor = Color.DKGRAY
+            activity?.let { textColor = ContextCompat.getColor(it, R.color.secondary) }
             textSize = 12f
         }
     }
