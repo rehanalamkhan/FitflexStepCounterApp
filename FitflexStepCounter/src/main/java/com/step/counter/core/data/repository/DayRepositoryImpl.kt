@@ -11,9 +11,6 @@ class DayRepositoryImpl(
     private val dao: DayDao
 ) : DayRepository {
 
-    override fun getTreeCount(): Flow<Int> {
-        return dao.getTreeCount()
-    }
 
     override fun getFirstDay(): Flow<Day?> {
         return dao.getFirstDay()

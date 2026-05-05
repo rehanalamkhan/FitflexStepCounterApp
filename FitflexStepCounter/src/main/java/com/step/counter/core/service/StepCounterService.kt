@@ -23,13 +23,14 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.DetectedActivity
-import com.step.counter.StepCounterMainActivity
 import com.step.counter.R
 import com.step.counter.StepCounter
 import com.step.counter.core.data.repository.DayRepositoryImpl
 import com.step.counter.core.domain.usecase.DayUseCases
 import com.step.counter.features.settings.data.repository.SettingsRepositoryImpl
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
 
 class StepCounterService : LifecycleService(), SensorEventListener {
@@ -72,7 +73,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
-//        Log.d(TAG, "onCreate")
+        Log.d(TAG, "onCreate")
         if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
             registerNotificationChannel(createNotificationChannel())
         }
@@ -119,11 +120,11 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         ActivityRecognition.getClient(this)
             .requestActivityUpdates(ACTIVITY_UPDATE_INTERVAL_MS, pendingIntent)
             .addOnSuccessListener {
-//                Log.d(TAG, "Activity recognition registered successfully")
+                Log.d(TAG, "Activity recognition registered (interval=${ACTIVITY_UPDATE_INTERVAL_MS}ms)")
                 scheduleActivityRecognitionGateFallback()
             }
             .addOnFailureListener {
-//                Log.e(TAG, "Activity recognition failed to register: ${it.message}")
+                Log.e(TAG, "Activity recognition failed to register", it)
                 cancelActivityRecognitionGateFallback()
                 isStepCountingAllowed = true
             }
@@ -133,7 +134,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         cancelActivityRecognitionGateFallback()
         val runnable = Runnable {
             if (activityUpdatesHandledCount == 0) {
-//                Log.w(TAG, "No activity update reached the service — opening step gate (fallback)")
+                Log.w(TAG, "No activity update reached service — opening step gate (fallback)")
                 isStepCountingAllowed = true
             }
         }
@@ -148,38 +149,40 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
     private fun handleActivityUpdate(intent: Intent) {
         if (!ActivityRecognitionResult.hasResult(intent)) {
-//            Log.w(TAG, "handleActivityUpdate: no AR result in intent")
+            Log.w(TAG, "handleActivityUpdate: no AR result in intent")
             return
         }
         val result = ActivityRecognitionResult.extractResult(intent) ?: return
         activityUpdatesHandledCount++
         val activities = result.probableActivities
 
-        // Log all detected activities and confidence levels
-//        activities.forEach {
-//            Log.d(TAG, "Activity: ${activityName(it.type)} confidence: ${it.confidence}%")
-//        }
+        activities.forEach {
+            Log.v(TAG, "AR candidate: ${activityName(it.type)} confidence=${it.confidence}%")
+        }
 
         val topActivity = activities.maxByOrNull { it.confidence } ?: return
-//        Log.d(TAG, "Top activity: ${activityName(topActivity.type)} @ ${topActivity.confidence}%")
+        Log.d(TAG, "Top activity: ${activityName(topActivity.type)} @ ${topActivity.confidence}%")
 
         when {
             topActivity.type in STEP_ACTIVITIES && topActivity.confidence >= 50 -> {
-//                Log.d(TAG, "Gate OPENED — walking/running detected")
+                Log.d(TAG, "Gate OPEN — walking/running/on-foot")
                 isStepCountingAllowed = true
                 lastValidActivityTime = System.currentTimeMillis()
             }
             topActivity.type in BLOCK_ACTIVITIES && topActivity.confidence >= 75 -> {
                 val elapsed = System.currentTimeMillis() - lastValidActivityTime
                 if (elapsed > ACTIVITY_GATE_TIMEOUT_MS) {
-//                    Log.d(TAG, "Gate CLOSED — ${activityName(topActivity.type)} detected for ${elapsed}ms")
+                    Log.d(
+                        TAG,
+                        "Gate CLOSED — ${activityName(topActivity.type)} (${elapsed}ms since last walk/run)",
+                    )
                     isStepCountingAllowed = false
                 } else {
-//                    Log.d(TAG, "Gate staying OPEN — grace period not elapsed (${elapsed}ms)")
+                    Log.v(TAG, "Gate stays OPEN — grace (${elapsed}ms < ${ACTIVITY_GATE_TIMEOUT_MS}ms)")
                 }
             }
             else -> {
-//                Log.d(TAG, "Gate unchanged — ambiguous activity")
+                Log.v(TAG, "Gate unchanged — ambiguous activity")
             }
         }
     }
@@ -206,16 +209,17 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-//        Log.d(TAG, "onStartCommand action: ${intent?.action}")
+        Log.d(TAG, "onStartCommand action=${intent?.action}")
         if (intent?.action == ACTION_ACTIVITY_UPDATE) {
             handleActivityUpdate(intent)
-        } else if (intent?.action== ACTION_STOP_SERVICE){
+        } else if (intent?.action == ACTION_STOP_SERVICE) {
             if (Build.VERSION.SDK_INT >= VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
             } else {
                 @Suppress("DEPRECATION")
                 stopForeground(true)
             }
+            Log.d(TAG, "Stopping foreground service (user action)")
             stopSelf()
         }
         return START_STICKY
@@ -224,17 +228,22 @@ class StepCounterService : LifecycleService(), SensorEventListener {
     // ─── Sensor ───────────────────────────────────────────────────────────────
 
     private fun registerStepCounter(sensorManager: SensorManager) {
-        sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        if (sensor == null) {
+            Log.e(TAG, "TYPE_STEP_COUNTER sensor not available on this device")
+            return
         }
+        sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+        Log.d(TAG, "Step counter sensor registered (delay=NORMAL)")
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
         if (event.sensor.type != Sensor.TYPE_STEP_COUNTER) return
-//        Log.d(TAG, "Step sensor fired — gate open: $isStepCountingAllowed, steps: ${event.values[0].toInt()}")
+        val steps = event.values[0].toInt()
+        Log.v(TAG, "Step sensor event total=$steps gateOpen=$isStepCountingAllowed")
         if (!isStepCountingAllowed) return
-        controller.onStepCountChanged(event.values[0].toInt(), LocalDate.now())
+        controller.onStepCountChanged(steps, LocalDate.now())
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -247,7 +256,6 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         val content = getString(R.string.step_counter_stats, calorieBurned, distanceTravelled, progress)
 
         NotificationCompat.Builder(this@StepCounterService, NOTIFICATION_CHANNEL_ID)
-            .setContentIntent(launchApplicationPendingIntent)
             .setSmallIcon(R.drawable.ic_fitflex_logo)
             .setContentTitle(title)
             .setContentText(content)
@@ -267,16 +275,14 @@ class StepCounterService : LifecycleService(), SensorEventListener {
             return PendingIntent.getService(this, 0x3, intent, flags)
         }
 
-    private val launchApplicationPendingIntent
-        get(): PendingIntent {
-            val intent = Intent(applicationContext, StepCounterMainActivity::class.java)
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            return PendingIntent.getActivity(this, PENDING_INTENT_ID, intent, flags)
-        }
-
     // ─── Cleanup ──────────────────────────────────────────────────────────────
 
     override fun onDestroy() {
+        Log.d(TAG, "onDestroy — flushing pending steps")
+        runBlocking(Dispatchers.IO) {
+            controller.flushPendingStepsToDatabase()
+        }
+        Log.d(TAG, "onDestroy — teardown AR + sensor listener")
         cancelActivityRecognitionGateFallback()
         activityRecognitionPendingIntent?.let {
             ActivityRecognition.getClient(this).removeActivityUpdates(it)

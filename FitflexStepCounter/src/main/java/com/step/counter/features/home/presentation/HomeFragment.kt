@@ -15,6 +15,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.preference.PreferenceManager
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
@@ -45,6 +46,8 @@ class HomeFragment : Fragment() {
     private var previousSteps: List<Float>? = null
     private var chartValueAnimator: ValueAnimator? = null
 
+    /** Anchor for refreshing week data when returning from Settings (same Sun→Sat range). */
+    private var selectedWeekStart: LocalDate? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -58,6 +61,7 @@ class HomeFragment : Fragment() {
 
         val today = LocalDate.now()
         val firstDayOfWeek = today.minusDays(today.dayOfWeek.value % 7L)
+        selectedWeekStart = firstDayOfWeek
         statsChartPageViewModel.selectWeek(firstDayOfWeek)
         setGreeting()
 
@@ -85,6 +89,17 @@ class HomeFragment : Fragment() {
             findNavController().navigate(R.id.homeFragmentToSettingsFragment)
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-query week flow so chart picks up edited daily_goal from SharedPreferences / SettingsStore.
+        selectedWeekStart?.let { statsChartPageViewModel.selectWeek(it) }
+    }
+
+    /** Same key/default as [com.step.counter.features.settings.data.source.SettingsStoreImpl]. */
+    private fun currentDailyGoalFromPrefs(): Int =
+        PreferenceManager.getDefaultSharedPreferences(requireContext())
+            .getString(PREF_KEY_DAILY_GOAL, "")?.toIntOrNull() ?: DEFAULT_DAILY_GOAL
 
     private fun setGreeting() {
         val calendar = Calendar.getInstance()
@@ -124,6 +139,7 @@ class HomeFragment : Fragment() {
                     valueText.text = stepsTaken.toString()
                     descText.text = stepsText
                 }
+
                 with(caloryLayout) {
                     image.setImageResource(R.drawable.ic_kcal)
                     valueText.text = calorieBurned.toString()
@@ -134,16 +150,19 @@ class HomeFragment : Fragment() {
 
     private fun updateBarChart(barChart: BarChart, week: List<Day>) {
 
+        // Always read latest goal here so bar colors match Settings immediately (avoids stale Day.goal / renderer state).
+        val goal = currentDailyGoalFromPrefs()
+
         // 1️⃣ Prepare new step values (Sun → Sat)
         val newSteps = week.take(7).map { it.steps.toFloat() }
-//        val gradientIndices = setOf(0, 2, 3, 5)
 
         val gradientIndices = week.take(7)
             .mapIndexedNotNull { index, day ->
-                if (day.steps >= day.goal) index else null
+                if (day.steps >= goal) index else null
             }
             .toSet()
 
+        // New list each draw — MPAndroidChart mutates internally; reassignment ensures grey vs gradient is correct.
         val colors = newSteps.indices.map { index ->
             if (index in gradientIndices) gradientEnd else grayColor
         }
@@ -155,7 +174,7 @@ class HomeFragment : Fragment() {
         } else {
             val entries = newSteps.mapIndexed { index, _ -> BarEntry(index.toFloat(), 0f) }
             val newDataSet = BarDataSet(entries, "")
-            newDataSet.colors = colors
+            newDataSet.colors = colors.toMutableList()
             newDataSet.setDrawValues(false)
 
             val newBarData = BarData(newDataSet)
@@ -164,7 +183,25 @@ class HomeFragment : Fragment() {
             barChart.setFitBars(true)
             newDataSet
         }
-        dataSet.colors = colors
+        dataSet.colors = colors.toMutableList()
+        barChart.data?.notifyDataChanged()
+        barChart.notifyDataSetChanged()
+
+        // Install / refresh custom renderer before animating so gradient vs grey matches current goal immediately.
+        if (roundedRenderer == null) {
+            roundedRenderer = RoundedBarChartRenderer(
+                barChart,
+                barChart.animator,
+                barChart.viewPortHandler,
+                radius = 20f,
+                initialGradientIndices = gradientIndices,
+                gradientStart = gradientStart,
+                gradientEnd = gradientEnd
+            )
+            barChart.renderer = roundedRenderer
+        } else {
+            roundedRenderer!!.gradientIndices = gradientIndices
+        }
 
         // 3️⃣ Smooth transition animation
         chartValueAnimator?.cancel()
@@ -188,28 +225,22 @@ class HomeFragment : Fragment() {
         }
         previousSteps = newSteps
 
-        // 4️⃣ Set renderer ONCE
-        if (roundedRenderer == null) {
-            roundedRenderer = RoundedBarChartRenderer(
-                barChart,
-                barChart.animator,
-                barChart.viewPortHandler,
-                radius = 20f,
-                gradientIndices = gradientIndices,
-                gradientStart = gradientStart,
-                gradientEnd = gradientEnd
-            )
-            barChart.renderer = roundedRenderer
-        }
-
-        // 5️⃣ Axis & style
+        // 4️⃣ Axis & style
         val maxSteps = newSteps.maxOrNull() ?: 0f
         configureXAxis(barChart)
         configureYAxis(barChart, maxSteps)
         styleChart(barChart)
 
-        // 6️⃣ Initial animation handle removed (now handled by chartValueAnimator)
+        // 5️⃣ Initial animation handle removed (now handled by chartValueAnimator)
         barChart.invalidate()
+    }
+
+    private companion object {
+        /** Mirrors SettingsStoreImpl preference default for first launch before any write. */
+        private const val DEFAULT_DAILY_GOAL = 8000
+
+        /** Same key as SettingsStoreImpl — keep in sync if renamed. */
+        private const val PREF_KEY_DAILY_GOAL = "daily_goal"
     }
 
     private fun configureXAxis(barChart: BarChart) {
@@ -251,6 +282,4 @@ class HomeFragment : Fragment() {
             setExtraOffsets(10f, 10f, 10f, 10f)
         }
     }
-
-
 }

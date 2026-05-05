@@ -21,7 +21,6 @@ import com.step.counter.R
 import com.step.counter.databinding.FragmentSettingsBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import androidx.core.graphics.toColorInt
 
 class SettingsFragment : Fragment() {
 

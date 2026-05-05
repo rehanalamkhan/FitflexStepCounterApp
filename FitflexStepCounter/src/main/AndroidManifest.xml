@@ -14,10 +14,6 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true">
 
-        <activity
-            android:name=".StepCounterMainActivity"
-            android:exported="true" />
-
         <service
             android:name=".core.service.StepCounterService"
             android:exported="false"

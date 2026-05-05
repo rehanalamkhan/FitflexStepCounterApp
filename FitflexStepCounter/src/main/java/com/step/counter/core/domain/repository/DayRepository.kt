@@ -7,8 +7,6 @@ import java.time.LocalDate
 
 interface DayRepository {
 
-    fun getTreeCount(): Flow<Int>
-
     fun getFirstDay(): Flow<Day?>
 
     fun getDay(date: LocalDate): Flow<Day?>

@@ -8,7 +8,6 @@ import com.step.counter.StepCounter
 import com.step.counter.core.data.repository.DayRepositoryImpl
 import com.step.counter.core.domain.model.Day
 import com.step.counter.features.home.domain.usecase.StatsChartPageUseCases
-import com.step.counter.features.home.util.alignWeek
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +29,7 @@ class StatsChartPageViewModel(
         getWeekJob?.cancel()
         getWeekJob = viewModelScope.launch {
             statsChartPageUseCases.getWeek(firstDate).collect { week ->
-                _week.value = week.alignWeek(firstDate)
+                _week.value = week
             }
         }
     }

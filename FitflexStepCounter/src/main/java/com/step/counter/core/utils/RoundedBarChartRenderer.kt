@@ -20,10 +20,13 @@ class RoundedBarChartRenderer(
     animator: ChartAnimator,
     viewPortHandler: ViewPortHandler,
     private val radius: Float,
-    private val gradientIndices: Set<Int> = emptySet(),
+    initialGradientIndices: Set<Int> = emptySet(),
     private val gradientStart: Int = 0,
     private val gradientEnd: Int = 0
 ) : BarChartRenderer(chart, animator, viewPortHandler) {
+
+    /** Must be refreshed whenever goals/steps change — renderer does not read dataset colors for gradients. */
+    var gradientIndices: Set<Int> = initialGradientIndices
 
     private val gradientPaints = mutableMapOf<Int, Paint>()
 
