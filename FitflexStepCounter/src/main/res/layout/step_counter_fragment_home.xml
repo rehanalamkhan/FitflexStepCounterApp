@@ -189,7 +189,7 @@
         android:id="@+id/graphLL"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/_12sdp"
+        android:layout_marginTop="@dimen/_10sdp"
         android:orientation="vertical"
         app:layout_constraintBottom_toTopOf="@id/fitFlexIv"
         app:layout_constraintEnd_toEndOf="parent"
@@ -208,7 +208,6 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/_12sdp"
             android:elevation="0dp"
             app:cardBackgroundColor="@color/graph_bg"
             app:cardCornerRadius="@dimen/_12sdp"
@@ -226,7 +225,7 @@
                 android:layout_gravity="center"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:padding="@dimen/_12sdp">
+                android:padding="@dimen/_9sdp">
 
 
                 <TextView
@@ -243,7 +242,7 @@
                 <com.github.mikephil.charting.charts.BarChart
                     android:id="@+id/barChart"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/_180sdp"
+                    android:layout_height="@dimen/_170sdp"
                     android:background="@android:color/transparent"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -259,7 +258,6 @@
         android:id="@+id/fitFlexIv"
         android:layout_width="@dimen/_40sdp"
         android:layout_height="@dimen/_40sdp"
-        android:layout_marginBottom="@dimen/_20sdp"
         android:src="@drawable/ic_fitflex_logo"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

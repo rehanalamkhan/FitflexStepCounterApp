@@ -93,23 +93,21 @@ class StepCounterFragment : Fragment() {
                 )
                 .commit()
         }
-        requireActivity().onBackPressedDispatcher.addCallback(
-            viewLifecycleOwner
-        ) {
-            if (!handleBackPress()) {
-                isEnabled = false
-                requireActivity().onBackPressedDispatcher.onBackPressed()
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            val navController = (childFragmentManager
+                .findFragmentById(R.id.step_counter_nav_host) as? NavHostFragment)
+                ?.navController
+
+            if (navController?.popBackStack() == true) {
+                // Handled internally — stayed inside StepCounterFragment
+                return@addCallback
             }
+
+            // Nothing left in internal stack → disable self so host can handle it
+            isEnabled = false
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-    }
 
-    // ─── Public API ─────────────────────────────────────────────────────────
-    fun handleBackPress(): Boolean {
-        val navController = (childFragmentManager
-            .findFragmentById(R.id.step_counter_nav_host) as? NavHostFragment)
-            ?.navController ?: return false
-
-        return navController.popBackStack()
     }
 
     // ─── Permissions ────────────────────────────────────────────────────────
