@@ -53,8 +53,7 @@ class SettingsFragment : Fragment() {
         observeSettings()
         binding.getStarted.setOnClickListener {
             viewModel.updateDailyGoal(selectedTargetStep)
-            val action = R.id.settingsFragmentToHomeFragment
-            findNavController().navigate(action)
+            findNavController().popBackStack()
         }
     }
 

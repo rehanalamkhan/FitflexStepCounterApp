@@ -49,6 +49,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         private const val TAG = "StepCounterService"
         private const val NOTIFICATION_CHANNEL_ID = "step_counter_channel"
         private const val NOTIFICATION_ID = 0x1
+
         private const val PENDING_INTENT_ID = 0x1
         private const val ACTIVITY_RECOGNITION_PI_REQUEST_CODE = 0x2
         private const val ACTIVITY_UPDATE_INTERVAL_MS = 5_000L

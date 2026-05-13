@@ -24,7 +24,7 @@ class StepCounterController(
         private const val TAG = "StepCounterController"
 
         /** Persist step deltas to Room in multiples of this size to reduce writes. */
-        private const val STEP_PERSIST_BATCH_SIZE = 50
+        private const val STEP_PERSIST_BATCH_SIZE = 1
     }
 
     private val _stats = MutableStateFlow(StepCounterState(LocalDate.now(), 0, 0, 0.0, 0))

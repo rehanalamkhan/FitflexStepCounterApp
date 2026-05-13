@@ -19,9 +19,5 @@
         android:id="@+id/settingsFragment"
         android:name="com.step.counter.features.settings.presentation.SettingsFragment"
         android:label="@string/settings"
-        tools:layout="@layout/fragment_settings">
-        <action
-            android:id="@+id/settingsFragmentToHomeFragment"
-            app:destination="@id/homeFragment" />
-    </fragment>
+        tools:layout="@layout/fragment_settings"/>
 </navigation>

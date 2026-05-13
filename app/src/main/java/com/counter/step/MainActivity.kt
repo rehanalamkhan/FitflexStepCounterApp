@@ -9,7 +9,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.counter.step.databinding.ActivityMainBinding
-import com.step.counter.R
 import com.step.counter.StepCounterFragment
 import com.step.counter.features.home.presentation.StatsDetailsViewModel
 import kotlinx.coroutines.launch
@@ -40,7 +39,7 @@ class MainActivity : AppCompatActivity() {
                         com.step.counter.R.plurals.step_count_format, stats.stepsTaken,
                     )
                     val distanceText = getString(
-                        R.string.distance_travelled_format, stats.distanceTravelled
+                        com.step.counter.R.string.distance_travelled_format, stats.distanceTravelled
                     )
 
                     val caloriesBurned = stats.calorieBurned
