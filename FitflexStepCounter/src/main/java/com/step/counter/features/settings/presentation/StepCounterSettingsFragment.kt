@@ -16,8 +16,8 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.navigation.fragment.findNavController
 import com.step.counter.R
+import com.step.counter.core.utils.extensions.safeBack
 import com.step.counter.databinding.StepCounterFragmentSettingsBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -53,7 +53,7 @@ class StepCounterSettingsFragment : Fragment() {
         observeSettings()
         binding.getStarted.setOnClickListener {
             viewModel.updateDailyGoal(selectedTargetStep)
-            findNavController().popBackStack()
+            safeBack()
         }
     }
 

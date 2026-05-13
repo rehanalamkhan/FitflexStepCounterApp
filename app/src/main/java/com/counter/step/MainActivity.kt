@@ -9,7 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.counter.step.databinding.ActivityMainBinding
-import com.step.counter.StepCounterFragment
+import com.step.counter.integration.StepCounterHost
 import com.step.counter.features.home.presentation.StatsDetailsViewModel
 import kotlinx.coroutines.launch
 
@@ -49,14 +49,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadStepCounterFragment() {
-        if (supportFragmentManager.findFragmentByTag("StepCounter") == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(
-                    com.counter.step.R.id.fragment_container,
-                    StepCounterFragment.newInstance(),
-                    "StepCounter"
-                )
-                .commit()
-        }
+        StepCounterHost.show(
+            fragmentManager = supportFragmentManager,
+            containerId = com.counter.step.R.id.fragment_container,
+        )
     }
 }

@@ -15,7 +15,6 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.components.XAxis
@@ -26,6 +25,7 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.step.counter.R
 import com.step.counter.core.domain.model.Day
 import com.step.counter.core.utils.RoundedBarChartRenderer
+import com.step.counter.core.utils.extensions.safeNavigate
 import com.step.counter.databinding.StepCounterFragmentHomeBinding
 import com.step.counter.features.home.data.model.StatsDetailsState
 import kotlinx.coroutines.launch
@@ -86,7 +86,7 @@ class StepCounterHomeFragment : Fragment() {
         }
 
         binding.menuBtn.setOnClickListener {
-            findNavController().navigate(R.id.homeFragmentToSettingsFragment)
+            safeNavigate(R.id.stepCounterHomeFragmentToStepCounterSettingsFragment)
         }
     }
 
@@ -172,7 +172,7 @@ class StepCounterHomeFragment : Fragment() {
         val dataSet = if (barData != null && barData.dataSetCount > 0) {
             barData.getDataSetByIndex(0) as BarDataSet
         } else {
-            val entries = newSteps.mapIndexed { index, _ -> BarEntry(index.toFloat(), 0f) }
+            val entries = List(newSteps.size) { index -> BarEntry(index.toFloat(), 0f) }
             val newDataSet = BarDataSet(entries, "")
             newDataSet.colors = colors.toMutableList()
             newDataSet.setDrawValues(false)

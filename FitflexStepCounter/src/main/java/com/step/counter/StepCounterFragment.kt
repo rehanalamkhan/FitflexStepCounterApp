@@ -23,6 +23,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.fragment.NavHostFragment
 import com.step.counter.core.service.StepCounterService
+import com.step.counter.core.utils.extensions.popStepCounterHostBackStack
 import androidx.core.content.edit
 
 class StepCounterFragment : Fragment() {
@@ -86,7 +87,7 @@ class StepCounterFragment : Fragment() {
             childFragmentManager.beginTransaction()
                 .replace(
                     R.id.step_counter_nav_host,
-                    NavHostFragment.create(R.navigation.nav_graph)
+                    NavHostFragment.create(R.navigation.step_counter_nav_graph)
                 )
                 .setPrimaryNavigationFragment(
                     childFragmentManager.findFragmentById(R.id.step_counter_nav_host)
@@ -94,20 +95,25 @@ class StepCounterFragment : Fragment() {
                 .commit()
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
-            val navController = (childFragmentManager
-                .findFragmentById(R.id.step_counter_nav_host) as? NavHostFragment)
-                ?.navController
-
-            if (navController?.popBackStack() == true) {
-                // Handled internally — stayed inside StepCounterFragment
+            if (popInternalBackStack()) {
                 return@addCallback
             }
 
-            // Nothing left in internal stack → disable self so host can handle it
+            if (popStepCounterHostBackStack()) {
+                return@addCallback
+            }
+
             isEnabled = false
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
+    }
+
+    private fun popInternalBackStack(): Boolean {
+        val internalNavController = (childFragmentManager
+            .findFragmentById(R.id.step_counter_nav_host) as? NavHostFragment)
+            ?.navController
+        return internalNavController?.popBackStack() == true
     }
 
     // ─── Permissions ────────────────────────────────────────────────────────
@@ -302,6 +308,10 @@ class StepCounterFragment : Fragment() {
         private const val PERM_PREFS_NAME = "step_counter_permission_state"
         private const val KEY_PERM_RUNTIME_BLOCKED = "runtime_prompt_permanently_blocked"
 
+        /**
+         * Creates the library root fragment. Host apps may present it through Navigation
+         * Component or through [com.step.counter.integration.StepCounterHost].
+         */
         fun newInstance(): StepCounterFragment = StepCounterFragment()
     }
 }

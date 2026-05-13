@@ -11,7 +11,7 @@
         tools:layout="@layout/step_counter_fragment_home">
 
         <action
-            android:id="@+id/homeFragmentToSettingsFragment"
+            android:id="@+id/stepCounterHomeFragmentToStepCounterSettingsFragment"
             app:destination="@id/settingsFragment" />
     </fragment>
 
