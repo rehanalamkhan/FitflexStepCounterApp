@@ -18,7 +18,7 @@ This guide explains how to embed `StepCounterFragment` in host apps that use Nav
 
 ### Case 1: Navigation Component
 
-Add the library fragment as a destination in your app graph:
+Add the library fragment as a destination in your app graph. Use the fully qualified class name and a label resource that exists in your app or is merged from the library:
 
 ```xml
 <fragment
@@ -26,6 +26,8 @@ Add the library fragment as a destination in your app graph:
     android:name="com.step.counter.StepCounterFragment"
     android:label="@string/step_counter" />
 ```
+
+`StepCounterFragment` is a public `androidx.fragment.app.Fragment` with a public no-arg constructor. Navigation Component instantiates it by reflection, so keep the class public and avoid shrinking it in release builds. The library ships consumer ProGuard rules for that purpose.
 
 Navigate from any fragment that already has a `NavController`:
 

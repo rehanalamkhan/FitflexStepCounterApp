@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.Keep
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -26,7 +27,8 @@ import com.step.counter.core.service.StepCounterService
 import com.step.counter.core.utils.extensions.popStepCounterHostBackStack
 import androidx.core.content.edit
 
-class StepCounterFragment : Fragment() {
+@Keep
+open class StepCounterFragment : Fragment() {
 
     // ─── Permission Launcher ────────────────────────────────────────────────
     private val requestPermissionLauncher =

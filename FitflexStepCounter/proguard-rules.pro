@@ -1,4 +1,13 @@
-# Add project specific ProGuard rules here.
+# Preserve public fragment entry points for Navigation Component reflection and R8.
+-keep public class com.step.counter.** extends androidx.fragment.app.Fragment {
+    public <init>();
+}
+
+-keepnames class com.step.counter.StepCounterFragment
+-keepclassmembers class com.step.counter.StepCounterFragment {
+    public <init>();
+}
+
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #

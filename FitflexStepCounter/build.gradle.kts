@@ -75,7 +75,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "com.github.rehanalamkhan"
             artifactId = "stepcounter"
-            version = "1.0.7"
+            version = "1.1.2"
 
             afterEvaluate {
                 from(components["release"])
@@ -129,10 +129,11 @@ dependencies {
     implementation("com.intuit.sdp:sdp-android:1.1.1")
 
 
+    api("androidx.fragment:fragment-ktx:1.8.5")
+
     // Views/Fragments integration
     implementation("androidx.navigation:navigation-fragment-ktx:2.8.5")
     implementation("androidx.navigation:navigation-ui-ktx:2.8.5")
-    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     implementation("androidx.navigation:navigation-dynamic-features-fragment:2.8.5")
     implementation("androidx.activity:activity-ktx:1.9.3")

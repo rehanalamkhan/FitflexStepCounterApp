@@ -10,6 +10,7 @@
     <string name="step_counter_stats">%1$d kcal · %2$.2f km · %3$d%% of your daily goal</string>
     <string name="steps">steps</string>
     <string name="step_goal">Goal %s</string>
+    <string name="step_counter">Step Counter</string>
     <string name="step_counter_channel">Step counter</string>
     <string name="good_morning">Good Morning ☀️</string>
     <string name="when_in_doubt_lets_take_a_walk">When in doubt lets take a walk.</string>
