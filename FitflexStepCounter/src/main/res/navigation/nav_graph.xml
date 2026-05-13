@@ -6,9 +6,9 @@
     app:startDestination="@+id/homeFragment">
     <fragment
         android:id="@+id/homeFragment"
-        android:name="com.step.counter.features.home.presentation.HomeFragment"
+        android:name="com.step.counter.features.home.presentation.StepCounterHomeFragment"
         android:label="fragment_home"
-        tools:layout="@layout/fragment_home">
+        tools:layout="@layout/step_counter_fragment_home">
 
         <action
             android:id="@+id/homeFragmentToSettingsFragment"
@@ -17,7 +17,7 @@
 
     <fragment
         android:id="@+id/settingsFragment"
-        android:name="com.step.counter.features.settings.presentation.SettingsFragment"
+        android:name="com.step.counter.features.settings.presentation.StepCounterSettingsFragment"
         android:label="@string/settings"
-        tools:layout="@layout/fragment_settings"/>
+        tools:layout="@layout/step_counter_fragment_settings"/>
 </navigation>

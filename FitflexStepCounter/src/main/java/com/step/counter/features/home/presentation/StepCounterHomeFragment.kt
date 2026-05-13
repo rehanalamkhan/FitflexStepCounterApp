@@ -26,13 +26,13 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.step.counter.R
 import com.step.counter.core.domain.model.Day
 import com.step.counter.core.utils.RoundedBarChartRenderer
-import com.step.counter.databinding.FragmentHomeBinding
+import com.step.counter.databinding.StepCounterFragmentHomeBinding
 import com.step.counter.features.home.data.model.StatsDetailsState
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Calendar
 
-class HomeFragment : Fragment() {
+class StepCounterHomeFragment : Fragment() {
 
     private val grayColor = "#979797".toColorInt()
     private val primaryColor = "#8DC63F".toColorInt()
@@ -40,7 +40,7 @@ class HomeFragment : Fragment() {
     private val viewModel: StatsDetailsViewModel by activityViewModels { StatsDetailsViewModel.Factory }
     private val statsChartPageViewModel: StatsChartPageViewModel by viewModels { StatsChartPageViewModel.Factory }
 
-    private var _binding: FragmentHomeBinding? = null
+    private var _binding: StepCounterFragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var roundedRenderer: RoundedBarChartRenderer? = null
     private var previousSteps: List<Float>? = null
@@ -52,7 +52,7 @@ class HomeFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        _binding = StepCounterFragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
     }
 

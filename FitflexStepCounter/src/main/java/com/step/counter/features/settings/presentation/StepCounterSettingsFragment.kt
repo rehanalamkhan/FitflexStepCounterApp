@@ -18,16 +18,16 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.step.counter.R
-import com.step.counter.databinding.FragmentSettingsBinding
+import com.step.counter.databinding.StepCounterFragmentSettingsBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class SettingsFragment : Fragment() {
+class StepCounterSettingsFragment : Fragment() {
 
     private val viewModel: SettingsViewModel by activityViewModels { SettingsViewModel }
 
 
-    private var _binding: FragmentSettingsBinding? = null
+    private var _binding: StepCounterFragmentSettingsBinding? = null
     private val binding get() = _binding!!
 
     private var selectedTargetStep = 8000
@@ -41,7 +41,7 @@ class SettingsFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentSettingsBinding.inflate(inflater, container, false)
+        _binding = StepCounterFragmentSettingsBinding.inflate(inflater, container, false)
         return binding.root
     }
 
