@@ -1,10 +1,13 @@
 package com.step.counter.core.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -16,6 +19,8 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
@@ -94,7 +99,9 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
         registerActivityRecognition()
 
-        startForeground(NOTIFICATION_ID, createNotification(controller.stats.value))
+        if (!startHealthForeground(createNotification(controller.stats.value))) {
+            return
+        }
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         lifecycleScope.launch {
@@ -107,6 +114,32 @@ class StepCounterService : LifecycleService(), SensorEventListener {
     }
 
     // ─── Activity Recognition ──────────────────────────────────────────────────
+
+    private fun canStartHealthForegroundService(): Boolean {
+        if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
+            return true
+        }
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACTIVITY_RECOGNITION,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun startHealthForeground(notification: Notification): Boolean {
+        if (!canStartHealthForegroundService()) {
+            Log.e(TAG, "Cannot start health foreground service without ACTIVITY_RECOGNITION")
+            stopSelf()
+            return false
+        }
+
+        val serviceType = if (Build.VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+        } else {
+            0
+        }
+        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, serviceType)
+        return true
+    }
 
     private fun registerActivityRecognition() {
         val intent = Intent(this, ActivityRecognitionUpdateReceiver::class.java)

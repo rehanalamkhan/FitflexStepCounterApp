@@ -294,6 +294,11 @@ open class StepCounterFragment : Fragment() {
     // ─── Service ─────────────────────────────────────────────────────────────
     private fun startStepCounterService() {
         if (!isAdded) return
+        val permissions = getRequiredPermissions()
+        if (permissions.isNotEmpty() && !areAllPermissionsGranted(permissions)) {
+            Log.w(TAG, "Skipping StepCounterService start: missing permissions")
+            return
+        }
         runCatching {
             ContextCompat.startForegroundService(
                 requireContext(),
