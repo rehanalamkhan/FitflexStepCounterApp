@@ -75,10 +75,14 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
         const val ACTION_ACTIVITY_UPDATE = "com.step.counter.ACTIVITY_UPDATE"
         const val ACTION_STOP_SERVICE   = "com.step.counter.STOP_SERVICE"
+
+        @Volatile
+        internal var isForegroundRunning = false
     }
 
     override fun onCreate() {
         super.onCreate()
+        isForegroundRunning = true
         Log.d(TAG, "onCreate")
         if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
             registerNotificationChannel(createNotificationChannel())
@@ -100,6 +104,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         registerActivityRecognition()
 
         if (!startHealthForeground(createNotification(controller.stats.value))) {
+            isForegroundRunning = false
             return
         }
 
@@ -312,6 +317,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
     // ─── Cleanup ──────────────────────────────────────────────────────────────
 
     override fun onDestroy() {
+        isForegroundRunning = false
         Log.d(TAG, "onDestroy — flushing pending steps")
         runBlocking(Dispatchers.IO) {
             controller.flushPendingStepsToDatabase()

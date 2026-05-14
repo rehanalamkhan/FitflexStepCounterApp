@@ -51,22 +51,18 @@ open class StepCounterFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         StepCounter.init(requireContext())
+        Log.d(TAG, "onCreate savedInstanceState=${savedInstanceState != null}")
     }
 
     override fun onStart() {
         super.onStart()
-        refreshPermissionStateAndMaybePrompt()
+        Log.d(TAG, "onStart lifecycle=${lifecycle.currentState}")
     }
 
     override fun onResume() {
         super.onResume()
-        val permissions = getRequiredPermissions()
-        if (permissions.isNotEmpty() && areAllPermissionsGranted(permissions)) {
-            clearPermanentDenialPref()
-            permanentlyDeniedDialogShownThisSession = false
-            launchedRuntimePromptThisFragmentInstance = false
-            startStepCounterService()
-        }
+        Log.d(TAG, "onResume lifecycle=${lifecycle.currentState}")
+        syncPermissionStateAndMaybeStartService("onResume")
     }
 
     override fun onCreateView(
@@ -144,22 +140,37 @@ open class StepCounterFragment : Fragment() {
      */
     private fun shouldShowRuntimePermissionPrompt(): Boolean {
         val permissions = getRequiredPermissions()
-        if (permissions.isEmpty() || areAllPermissionsGranted(permissions)) return false
+        if (permissions.isEmpty() || hasAllRequiredPermissions(permissions)) return false
         if (shouldShowPermissionRationale()) return true
         return !isPermanentDenialRecorded()
     }
 
-    private fun refreshPermissionStateAndMaybePrompt() {
+    /**
+     * Re-reads runtime permission state from the host app package manager on every resume.
+     * Returning from system settings does not invoke [requestPermissionLauncher], so this path
+     * must start [StepCounterService] when permissions were granted outside the launcher.
+     */
+    private fun syncPermissionStateAndMaybeStartService(source: String) {
+        if (!isAdded) {
+            Log.w(TAG, "$source: fragment not added, skipping permission sync")
+            return
+        }
+
         val permissions = getRequiredPermissions()
-        if (permissions.isEmpty() || areAllPermissionsGranted(permissions)) {
+        logPermissionState(source, permissions)
+
+        if (permissions.isEmpty() || hasAllRequiredPermissions(permissions)) {
+            clearPermanentDenialPref()
+            permanentlyDeniedDialogShownThisSession = false
             launchedRuntimePromptThisFragmentInstance = false
-            startStepCounterService()
+            startStepCounterServiceIfNeeded(source)
             return
         }
 
         if (shouldShowRuntimePermissionPrompt()) {
             if (!launchedRuntimePromptThisFragmentInstance) {
                 launchedRuntimePromptThisFragmentInstance = true
+                Log.d(TAG, "$source: launching runtime permission prompt")
                 requestPermissionLauncher.launch(permissions)
             }
             return
@@ -167,18 +178,15 @@ open class StepCounterFragment : Fragment() {
 
         if (!permanentlyDeniedDialogShownThisSession) {
             permanentlyDeniedDialogShownThisSession = true
+            Log.w(TAG, "$source: runtime permissions blocked, showing settings dialog")
             dispatchUiWhenStarted { showPermanentlyDeniedDialog() }
         }
     }
 
     private fun handlePermissionResult(permissions: Map<String, Boolean>) {
+        Log.d(TAG, "handlePermissionResult results=$permissions")
         when {
-            permissions.all { it.value } -> {
-                clearPermanentDenialPref()
-                permanentlyDeniedDialogShownThisSession = false
-                launchedRuntimePromptThisFragmentInstance = false
-                startStepCounterService()
-            }
+            permissions.all { it.value } -> syncPermissionStateAndMaybeStartService("permissionLauncher")
             shouldShowPermissionRationale() -> showPermissionRationaleDialog()
             else -> {
                 recordPermanentDenialPref()
@@ -189,7 +197,7 @@ open class StepCounterFragment : Fragment() {
     }
 
     private fun permissionPrefs() =
-        requireContext().getSharedPreferences(PERM_PREFS_NAME, Context.MODE_PRIVATE)
+        permissionContext().getSharedPreferences(PERM_PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun isPermanentDenialRecorded(): Boolean =
         permissionPrefs().getBoolean(KEY_PERM_RUNTIME_BLOCKED, false)
@@ -213,11 +221,28 @@ open class StepCounterFragment : Fragment() {
         else -> emptyArray()
     }
 
-    private fun areAllPermissionsGranted(permissions: Array<String>): Boolean =
-        permissions.all {
-            ContextCompat.checkSelfPermission(requireContext(), it) ==
-                    PackageManager.PERMISSION_GRANTED
+    private fun hasAllRequiredPermissions(permissions: Array<String>): Boolean =
+        permissions.all { isPermissionGranted(it) }
+
+    private fun isPermissionGranted(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(permissionContext(), permission) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun permissionContext(): Context = requireContext().applicationContext
+
+    private fun logPermissionState(source: String, permissions: Array<String>) {
+        val permissionStates = permissions.associateWith { permission ->
+            when (ContextCompat.checkSelfPermission(permissionContext(), permission)) {
+                PackageManager.PERMISSION_GRANTED -> "granted"
+                else -> "denied"
+            }
         }
+        Log.d(
+            TAG,
+            "$source: permissionStates=$permissionStates permanentDenialRecorded=${isPermanentDenialRecorded()} " +
+                "serviceRunning=${StepCounterService.isForegroundRunning} lifecycle=${lifecycle.currentState}",
+        )
+    }
 
     /**
      * Returns true if at least one denied permission can still show a rationale,
@@ -292,20 +317,32 @@ open class StepCounterFragment : Fragment() {
     }
 
     // ─── Service ─────────────────────────────────────────────────────────────
-    private fun startStepCounterService() {
-        if (!isAdded) return
-        val permissions = getRequiredPermissions()
-        if (permissions.isNotEmpty() && !areAllPermissionsGranted(permissions)) {
-            Log.w(TAG, "Skipping StepCounterService start: missing permissions")
+    private fun startStepCounterServiceIfNeeded(source: String) {
+        if (!isAdded) {
+            Log.w(TAG, "$source: fragment not added, skipping service start")
             return
         }
+
+        val permissions = getRequiredPermissions()
+        if (permissions.isNotEmpty() && !hasAllRequiredPermissions(permissions)) {
+            Log.w(TAG, "$source: skipping StepCounterService start, missing permissions")
+            return
+        }
+        if (StepCounterService.isForegroundRunning) {
+            Log.d(TAG, "$source: StepCounterService already running, skipping duplicate start")
+            return
+        }
+
+        Log.d(TAG, "$source: attempting StepCounterService start")
         runCatching {
             ContextCompat.startForegroundService(
-                requireContext(),
-                Intent(requireContext(), StepCounterService::class.java)
+                requireContext().applicationContext,
+                Intent(requireContext().applicationContext, StepCounterService::class.java)
             )
+        }.onSuccess {
+            Log.d(TAG, "$source: StepCounterService start requested")
         }.onFailure { e ->
-            Log.e(TAG, "Failed to start StepCounterService", e)
+            Log.e(TAG, "$source: failed to start StepCounterService", e)
         }
     }
 
