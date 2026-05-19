@@ -8,7 +8,7 @@
 
     <uses-feature
         android:name="android.hardware.sensor.stepcounter"
-        android:required="true" />
+        android:required="false" />
 
     <application
         android:hardwareAccelerated="true"

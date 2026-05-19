@@ -1,6 +1,7 @@
 package com.step.counter.core.service
 
 import android.Manifest
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,7 +14,6 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
-import android.os.Build.VERSION_CODES
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -78,14 +78,27 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
         @Volatile
         internal var isForegroundRunning = false
+
+        /** Alias for [isForegroundRunning]. */
+        val isRunning: Boolean get() = isForegroundRunning
     }
+
+    private var foregroundPromoted = false
 
     override fun onCreate() {
         super.onCreate()
-        isForegroundRunning = true
         Log.d(TAG, "onCreate")
-        if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             registerNotificationChannel(createNotificationChannel())
+        }
+
+        val bootstrapNotification = createNotification(
+            StepCounterState(LocalDate.now(), steps = 0, goal = 0, distanceTravelled = 0.0, calorieBurned = 0),
+        )
+        if (!startHealthForeground(bootstrapNotification)) {
+            Log.e(TAG, "onCreate: could not promote to foreground, stopping")
+            stopSelf()
+            return
         }
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -103,11 +116,6 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
         registerActivityRecognition()
 
-        if (!startHealthForeground(createNotification(controller.stats.value))) {
-            isForegroundRunning = false
-            return
-        }
-
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -121,7 +129,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
     // ─── Activity Recognition ──────────────────────────────────────────────────
 
     private fun canStartHealthForegroundService(): Boolean {
-        if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return true
         }
         return ContextCompat.checkSelfPermission(
@@ -131,19 +139,55 @@ class StepCounterService : LifecycleService(), SensorEventListener {
     }
 
     private fun startHealthForeground(notification: Notification): Boolean {
+        if (foregroundPromoted) {
+            Log.d(TAG, "startHealthForeground: already promoted")
+            return true
+        }
+
         if (!canStartHealthForegroundService()) {
             Log.e(TAG, "Cannot start health foreground service without ACTIVITY_RECOGNITION")
-            stopSelf()
             return false
         }
 
-        val serviceType = if (Build.VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
-        } else {
-            0
+        val serviceType =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            } else {
+                0
+            }
+
+        return try {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                serviceType
+            )
+
+            foregroundPromoted = true
+            isForegroundRunning = true
+
+            Log.d(TAG, "startHealthForeground: promoted successfully")
+            true
+        } catch (e: Exception) {
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                e is ForegroundServiceStartNotAllowedException
+            ) {
+                Log.e(TAG, "FGS start blocked — app not in allowed foreground state", e)
+
+            } else if (e is SecurityException) {
+                Log.e(TAG, "FGS start blocked — missing foreground service permission", e)
+
+            } else if (e is IllegalStateException) {
+                Log.e(TAG, "FGS start blocked — illegal state", e)
+
+            } else {
+                Log.e(TAG, "FGS start failed", e)
+            }
+
+            false
         }
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, serviceType)
-        return true
     }
 
     private fun registerActivityRecognition() {
@@ -240,7 +284,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
 
     private fun activityRecognitionPendingIntentFlags(): Int {
         val base = PendingIntent.FLAG_UPDATE_CURRENT
-        return if (Build.VERSION.SDK_INT >= VERSION_CODES.S) base or PendingIntent.FLAG_MUTABLE
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) base or PendingIntent.FLAG_MUTABLE
         else base
     }
 
@@ -252,7 +296,7 @@ class StepCounterService : LifecycleService(), SensorEventListener {
         if (intent?.action == ACTION_ACTIVITY_UPDATE) {
             handleActivityUpdate(intent)
         } else if (intent?.action == ACTION_STOP_SERVICE) {
-            if (Build.VERSION.SDK_INT >= VERSION_CODES.N) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
             } else {
                 @Suppress("DEPRECATION")
@@ -317,10 +361,14 @@ class StepCounterService : LifecycleService(), SensorEventListener {
     // ─── Cleanup ──────────────────────────────────────────────────────────────
 
     override fun onDestroy() {
+        foregroundPromoted = false
         isForegroundRunning = false
-        Log.d(TAG, "onDestroy — flushing pending steps")
-        runBlocking(Dispatchers.IO) {
-            controller.flushPendingStepsToDatabase()
+        Log.d(TAG, "onDestroy")
+        if (::controller.isInitialized) {
+            Log.d(TAG, "onDestroy — flushing pending steps")
+            runBlocking(Dispatchers.IO) {
+                controller.flushPendingStepsToDatabase()
+            }
         }
         Log.d(TAG, "onDestroy — teardown AR + sensor listener")
         cancelActivityRecognitionGateFallback()
@@ -328,20 +376,22 @@ class StepCounterService : LifecycleService(), SensorEventListener {
             ActivityRecognition.getClient(this).removeActivityUpdates(it)
         }
         activityRecognitionPendingIntent = null
-        sensorManager.unregisterListener(this)
+        if (::sensorManager.isInitialized) {
+            sensorManager.unregisterListener(this)
+        }
         super.onDestroy()
     }
 
     // ─── Notification Channel ─────────────────────────────────────────────────
 
-    @RequiresApi(VERSION_CODES.O)
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel() = NotificationChannel(
         NOTIFICATION_CHANNEL_ID,
         getString(R.string.step_counter_channel),
         NotificationManager.IMPORTANCE_DEFAULT
     ).apply { setShowBadge(false) }
 
-    @RequiresApi(VERSION_CODES.O)
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun registerNotificationChannel(channel: NotificationChannel) {
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
             .createNotificationChannel(channel)

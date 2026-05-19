@@ -22,10 +22,17 @@ import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import com.step.counter.core.service.StepCounterService
+import com.step.counter.core.utils.isAppInForeground
+import com.step.counter.core.utils.extensions.hasStepCounterSensor
 import com.step.counter.core.utils.extensions.popStepCounterHostBackStack
+import com.step.counter.core.utils.extensions.safeBack
 import androidx.core.content.edit
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Keep
 open class StepCounterFragment : Fragment() {
@@ -47,10 +54,14 @@ open class StepCounterFragment : Fragment() {
      */
     private var launchedRuntimePromptThisFragmentInstance = false
 
+    private var pendingServiceStartJob: Job? = null
+
+    private var isStepCounterSupportedOnDevice = false
+    private var unsupportedDeviceDialogShown = false
+
     // ─── Lifecycle ──────────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        StepCounter.init(requireContext())
         Log.d(TAG, "onCreate savedInstanceState=${savedInstanceState != null}")
     }
 
@@ -61,8 +72,23 @@ open class StepCounterFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "onResume lifecycle=${lifecycle.currentState}")
+        if (!isStepCounterSupportedOnDevice) {
+            Log.d(TAG, "onResume: step counter sensor unsupported, skipping permission/service flow")
+            return
+        }
+        Log.d(
+            TAG,
+            "onResume fragmentLifecycle=${lifecycle.currentState} " +
+                "viewLifecycle=${viewLifecycleOwner.lifecycle.currentState} " +
+                "processForeground=${permissionContext().isAppInForeground()}",
+        )
         syncPermissionStateAndMaybeStartService("onResume")
+    }
+
+    override fun onPause() {
+        pendingServiceStartJob?.cancel()
+        pendingServiceStartJob = null
+        super.onPause()
     }
 
     override fun onCreateView(
@@ -81,6 +107,20 @@ open class StepCounterFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val sensorSupported = requireContext().hasStepCounterSensor()
+        Log.d(TAG, "StepCounter sensor available = $sensorSupported")
+        if (!sensorSupported) {
+            if (!unsupportedDeviceDialogShown) {
+                unsupportedDeviceDialogShown = true
+                showUnsupportedDeviceDialog()
+            }
+            return
+        }
+
+        isStepCounterSupportedOnDevice = true
+        StepCounter.init(requireContext())
+
         if (savedInstanceState == null) {
             childFragmentManager.beginTransaction()
                 .replace(
@@ -151,6 +191,10 @@ open class StepCounterFragment : Fragment() {
      * must start [StepCounterService] when permissions were granted outside the launcher.
      */
     private fun syncPermissionStateAndMaybeStartService(source: String) {
+        if (!isStepCounterSupportedOnDevice) {
+            Log.w(TAG, "$source: step counter sensor unsupported, skipping permission sync")
+            return
+        }
         if (!isAdded) {
             Log.w(TAG, "$source: fragment not added, skipping permission sync")
             return
@@ -163,7 +207,7 @@ open class StepCounterFragment : Fragment() {
             clearPermanentDenialPref()
             permanentlyDeniedDialogShownThisSession = false
             launchedRuntimePromptThisFragmentInstance = false
-            startStepCounterServiceIfNeeded(source)
+            scheduleServiceStartIfEligible(source)
             return
         }
 
@@ -184,9 +228,17 @@ open class StepCounterFragment : Fragment() {
     }
 
     private fun handlePermissionResult(permissions: Map<String, Boolean>) {
-        Log.d(TAG, "handlePermissionResult results=$permissions")
+        Log.d(TAG, "handlePermissionResult results=$permissions lifecycle=${lifecycle.currentState}")
         when {
-            permissions.all { it.value } -> syncPermissionStateAndMaybeStartService("permissionLauncher")
+            permissions.all { it.value } -> {
+                clearPermanentDenialPref()
+                permanentlyDeniedDialogShownThisSession = false
+                launchedRuntimePromptThisFragmentInstance = false
+                // Defer service start until fragment is RESUMED and process is foreground.
+                if (isResumed) {
+                    scheduleServiceStartIfEligible("permissionLauncher")
+                }
+            }
             shouldShowPermissionRationale() -> showPermissionRationaleDialog()
             else -> {
                 recordPermanentDenialPref()
@@ -240,8 +292,27 @@ open class StepCounterFragment : Fragment() {
         Log.d(
             TAG,
             "$source: permissionStates=$permissionStates permanentDenialRecorded=${isPermanentDenialRecorded()} " +
-                "serviceRunning=${StepCounterService.isForegroundRunning} lifecycle=${lifecycle.currentState}",
+                "serviceRunning=${StepCounterService.isRunning} fragmentLifecycle=${lifecycle.currentState} " +
+                "processForeground=${permissionContext().isAppInForeground()}",
         )
+    }
+
+    /**
+     * Defers foreground service start until the fragment is visible and the process is in the
+     * foreground. Avoids [android.app.ForegroundServiceStartNotAllowedException] when returning
+     * from system settings while the activity transition is still in progress.
+     */
+    private fun scheduleServiceStartIfEligible(source: String) {
+        if (!isAdded) {
+            Log.w(TAG, "$source: fragment not added, not scheduling service start")
+            return
+        }
+        pendingServiceStartJob?.cancel()
+        pendingServiceStartJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(SERVICE_START_DELAY_MS)
+            startStepCounterServiceIfNeeded(source)
+        }
+        Log.d(TAG, "$source: scheduled service start in ${SERVICE_START_DELAY_MS}ms")
     }
 
     /**
@@ -254,6 +325,29 @@ open class StepCounterFragment : Fragment() {
         }
 
     // ─── Dialogs ─────────────────────────────────────────────────────────────
+
+    private fun showUnsupportedDeviceDialog() {
+        if (!isAdded || activity?.isFinishing == true) return
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.device_not_supported_title))
+            .setMessage(getString(R.string.device_not_supported_message))
+            .setCancelable(false)
+            .setPositiveButton(android.R.string.ok) { dialog, _ ->
+                dialog.dismiss()
+                exitBecauseUnsupportedDevice()
+            }
+            .show()
+    }
+
+    private fun exitBecauseUnsupportedDevice() {
+        if (!isAdded) return
+        Log.d(TAG, "Exiting StepCounterFragment: device lacks step counter sensor")
+        when {
+            popStepCounterHostBackStack() -> Unit
+            safeBack() -> Unit
+            else -> activity?.finish()
+        }
+    }
 
     /** Denied once → explain why we need it, offer to try again */
     private fun showPermissionRationaleDialog() {
@@ -318,8 +412,23 @@ open class StepCounterFragment : Fragment() {
 
     // ─── Service ─────────────────────────────────────────────────────────────
     private fun startStepCounterServiceIfNeeded(source: String) {
+        if (!isStepCounterSupportedOnDevice) {
+            Log.w(TAG, "$source: step counter sensor unsupported, skipping service start")
+            return
+        }
         if (!isAdded) {
             Log.w(TAG, "$source: fragment not added, skipping service start")
+            return
+        }
+        if (!isResumed) {
+            Log.w(
+                TAG,
+                "$source: fragment not RESUMED (lifecycle=${lifecycle.currentState}), skipping service start",
+            )
+            return
+        }
+        if (!permissionContext().isAppInForeground()) {
+            Log.w(TAG, "$source: app not in foreground, skipping service start")
             return
         }
 
@@ -328,16 +437,20 @@ open class StepCounterFragment : Fragment() {
             Log.w(TAG, "$source: skipping StepCounterService start, missing permissions")
             return
         }
-        if (StepCounterService.isForegroundRunning) {
+        if (StepCounterService.isRunning) {
             Log.d(TAG, "$source: StepCounterService already running, skipping duplicate start")
             return
         }
 
-        Log.d(TAG, "$source: attempting StepCounterService start")
+        Log.d(
+            TAG,
+            "$source: attempting StepCounterService start " +
+                "(fragmentLifecycle=${lifecycle.currentState} processForeground=true)",
+        )
         runCatching {
             ContextCompat.startForegroundService(
-                requireContext().applicationContext,
-                Intent(requireContext().applicationContext, StepCounterService::class.java)
+                permissionContext(),
+                Intent(permissionContext(), StepCounterService::class.java),
             )
         }.onSuccess {
             Log.d(TAG, "$source: StepCounterService start requested")
@@ -351,6 +464,7 @@ open class StepCounterFragment : Fragment() {
         private const val TAG = "StepCounterFragment"
         private const val PERM_PREFS_NAME = "step_counter_permission_state"
         private const val KEY_PERM_RUNTIME_BLOCKED = "runtime_prompt_permanently_blocked"
+        private const val SERVICE_START_DELAY_MS = 300L
 
         /**
          * Creates the library root fragment. Host apps may present it through Navigation

@@ -51,4 +51,6 @@
     <string name="open_settings">Open Settings</string>
     <string name="not_now">Not Now</string>
     <string name="cancel">Cancel</string>
+    <string name="device_not_supported_title">Device Not Supported</string>
+    <string name="device_not_supported_message">This device does not support the required step counter sensor. Step tracking cannot work on this device.</string>
 </resources>

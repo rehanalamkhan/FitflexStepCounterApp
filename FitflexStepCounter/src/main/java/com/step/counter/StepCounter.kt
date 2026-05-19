@@ -7,18 +7,17 @@ import android.content.IntentFilter
 import android.util.Log
 import androidx.preference.PreferenceManager
 import androidx.room.Room
-import com.step.counter.BuildConfig
 import com.step.counter.core.data.source.StepCounterDatabase
 import com.step.counter.core.domain.model.Day
 import com.step.counter.core.domain.model.of
 import com.step.counter.features.settings.data.source.SettingsStore
+import com.step.counter.core.utils.AppForegroundState
 import com.step.counter.features.settings.data.source.SettingsStoreImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 object StepCounter {
@@ -38,6 +37,7 @@ object StepCounter {
         if (isInitialized) return
         
         val appContext = context.applicationContext
+        (appContext as? android.app.Application)?.let { AppForegroundState.ensureInitialized() }
 
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(appContext)
         settingsStore = SettingsStoreImpl(sharedPreferences)
